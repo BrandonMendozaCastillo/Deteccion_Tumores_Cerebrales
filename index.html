@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Comparativa de Modelos — Detección de Tumores Cerebrales</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    :root{--bg:#0f1724;--card:#0b1220;--muted:#94a3b8;--accent:#60a5fa}
+    *{box-sizing:border-box;font-family:Inter,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
+    body{margin:0;background:linear-gradient(180deg,#071024 0%,#071b2a 100%);color:#e6eef8}
+    .container{max-width:1200px;margin:32px auto;padding:20px}
+    header{display:flex;gap:16px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+    h1{margin:0;font-size:22px}
+    p.lead{margin:4px 0 0;color:var(--muted)}
+    .grid{display:grid;grid-template-columns:1fr 450px;gap:20px;margin-top:20px}
+    .card{background:var(--card);padding:16px;border-radius:12px;box-shadow:0 6px 18px rgba(2,6,23,0.6);transition:transform .2s ease, box-shadow .2s ease}
+    .card:hover{transform:translateY(-3px);box-shadow:0 10px 24px rgba(2,6,23,0.7)}
+    .controls{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+    select,button,input[type=file]{padding:8px 10px;border-radius:8px;border:1px solid rgba(255,255,255,0.06);background:rgba(255,255,255,0.05);color:inherit;transition:background .2s ease}
+    select:hover,button:hover{background:rgba(255,255,255,0.1)}
+    canvas{width:100% !important;height:340px !important}
+    .metrics{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+    .metric{flex:1;background:rgba(255,255,255,0.04);padding:10px;border-radius:8px;text-align:center;cursor:pointer;transition:background .2s ease}
+    .metric:hover{background:rgba(255,255,255,0.1)}
+    .images-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:8px}
+    .img-placeholder{display:flex;align-items:center;justify-content:center;height:120px;border-radius:8px;background:linear-gradient(135deg,#07233a,#15364b);color:var(--muted);font-size:13px;transition:background .2s ease}
+    .img-placeholder:hover{background:linear-gradient(135deg,#15364b,#07233a)}
+    .small{font-size:13px;color:var(--muted)}
+    footer{margin-top:18px;color:var(--muted);font-size:13px;text-align:center}
+    @media(max-width:960px){.grid{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div>
+        <h1>Comparativa de modelos para detección de tumores cerebrales</h1>
+        <p class="lead">Compara AlexNet, ResNet, VGG16 y DenseNet con métricas visuales e interactivas.</p>
+      </div>
+    </header>
+
+    <div class="grid">
+      <div>
+        <div class="card">
+          <div class="controls">
+            <label class="small">Selecciona modelos a comparar:</label>
+            <select id="multiSelect" multiple size="4" style="min-width:160px">
+              <option value="AlexNet" selected>AlexNet</option>
+              <option value="ResNet" selected>ResNet</option>
+              <option value="VGG16" selected>VGG16</option>
+              <option value="DenseNet" selected>DenseNet</option>
+            </select>
+            <button id="loadSample">Actualizar gráfico</button>
+          </div>
+
+          <canvas id="barChart"></canvas>
+          <div class="metrics" id="metricsSummary"></div>
+        </div>
+      </div>
+
+      <aside>
+        <div class="card">
+          <h3>Descripción de modelos</h3>
+          <ul class="small">
+            <li><strong>AlexNet:</strong> Una de las primeras redes neuronales profundas en visión por computadora. Tiene una arquitectura simple pero efectiva que marcó el inicio del deep learning moderno.</li>
+            <li><strong>ResNet:</strong> Introduce conexiones residuales que permiten entrenar redes mucho más profundas sin perder rendimiento. Ideal para tareas complejas de imágenes médicas.</li>
+            <li><strong>VGG16:</strong> Utiliza muchas capas convolucionales pequeñas (3x3) y ofrece un buen equilibrio entre precisión y simplicidad. Muy usada para transfer learning.</li>
+            <li><strong>DenseNet:</strong> Cada capa está conectada con todas las anteriores, lo que mejora el flujo de información y reduce el sobreajuste en datasets médicos.</li>
+          </ul>
+          <h4 style="margin:12px 0 8px 0">Ejemplos de imágenes</h4>
+          <div class="images-grid">
+  <img src="imagenes/images1.jpg" alt="MRI 1" class="img-placeholder">
+  <img src="imagenes/images2.jpg" alt="MRI 2" class="img-placeholder">
+  <img src="imagenes/images3.jpg" alt="MRI 3" class="img-placeholder">
+  <img src="imagenes/images4.jpg" alt="MRI 4" class="img-placeholder">
+</div>
+
+          
+          
+        </div>
+      </aside>
+    </div>
+
+    <footer>Versión demostrativa. No realiza inferencia — solo muestra comparativas gráficas.</footer>
+  </div>
+
+  <script>
+    const sampleData = {
+      AlexNet: {accuracy:0.88,precision:0.85,recall:0.83,f1:0.84,auc:0.90},
+      ResNet:  {accuracy:0.94,precision:0.92,recall:0.91,f1:0.915,auc:0.97},
+      VGG16:   {accuracy:0.91,precision:0.90,recall:0.88,f1:0.89,auc:0.94},
+      DenseNet:{accuracy:0.93,precision:0.91,recall:0.90,f1:0.905,auc:0.96}
+    };
+
+    const barCtx = document.getElementById('barChart');
+    const colorPalette = [
+      'rgba(96,165,250,0.8)', // azul claro
+      'rgba(147,197,253,0.8)', // celeste
+      'rgba(14,165,233,0.8)', // azul intenso
+      'rgba(167,139,250,0.8)'  // violeta suave
+    ];
+
+    const barChart = new Chart(barCtx, {
+      type: 'bar',
+      data: {labels:['Accuracy','Precision','Recall','F1','AUC'],datasets:[]},
+      options:{
+        responsive:true,
+        plugins:{
+          legend:{position:'top', labels:{color:'#e6eef8'}},
+          title:{display:false}
+        },
+        scales:{
+          x:{ticks:{color:'#94a3b8'}},
+          y:{beginAtZero:true,max:1,ticks:{color:'#94a3b8'},grid:{color:'rgba(255,255,255,0.05)'}}
+        }
+      }
+    });
+
+    const metricsSummary = document.getElementById('metricsSummary');
+
+    function updateMetrics(models){
+      barChart.data.datasets = models.map((m,i)=>({
+        label:m,
+        data:Object.values(sampleData[m]),
+        backgroundColor:colorPalette[i % colorPalette.length],
+        borderRadius:6
+      }));
+      barChart.update();
+      metricsSummary.innerHTML='';
+      models.forEach(m=>{
+        const d=sampleData[m];
+        const div=document.createElement('div');
+        div.className='metric';
+        div.innerHTML=`<strong>${m}</strong><br><span class='small'>Acc: ${(d.accuracy*100).toFixed(1)}%<br>Prec: ${(d.precision*100).toFixed(1)}%</span>`;
+        metricsSummary.appendChild(div);
+      });
+    }
+
+    document.getElementById('loadSample').addEventListener('click',()=>{
+      const models=Array.from(document.getElementById('multiSelect').selectedOptions).map(o=>o.value);
+      updateMetrics(models);
+    });
+
+    updateMetrics(['AlexNet','ResNet','VGG16','DenseNet']);
+  </script>
+</body>
+</html>
